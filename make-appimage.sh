@@ -17,14 +17,9 @@ export PATH_MAPPING='
   /usr/share/locale:${SHARUN_DIR}/share/locale
 '
 # Deploy dependencies
-
 quick-sharun /usr/bin/savedesktop
 
-export DEPLOY_GTK=1
-export GTK_DIR=gtk-4.0
-
-quick-sharun /usr/bin/savedesktop
-
+DEPLOY_GTK=1 GTK_DIR=gtk-4.0 quick-sharun /usr/bin/savedesktop
 
 # Additional changes can be done in between here
 

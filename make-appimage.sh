@@ -21,7 +21,7 @@ export PATH_MAPPING='
 
 quick-sharun \
           /usr/bin/savedesktop
-          */usr/bin/gtk4*
+          #/usr/bin/gtk4*
 
 # Additional changes can be done in between here
 

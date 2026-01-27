@@ -12,7 +12,7 @@ export ICON=/usr/share/icons/hicolor/scalable/apps/io.github.vikdevelop.SaveDesk
 export DESKTOP=/usr/share/applications/io.github.vikdevelop.SaveDesktop.desktop
 export DEPLOY_SYS_PYTHON=1
 export DEPLOY_GTK=1
-export GTK_DIR=/usr/lib/gtk-4.0
+export GTK_DIR=/usr/lib/libgtk-4.so
 export PATH_MAPPING='
   /usr/share/savedesktop: ${SHARUN_DIR}/share/savedesktop
   /usr/share/locale:${SHARUN_DIR}/share/locale

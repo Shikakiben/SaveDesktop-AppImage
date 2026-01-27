@@ -11,6 +11,7 @@ export UPINFO="gh-releases-zsync|${GITHUB_REPOSITORY%/*}|${GITHUB_REPOSITORY#*/}
 export ICON=/usr/share/icons/hicolor/scalable/apps/io.github.vikdevelop.SaveDesktop.svg
 export DESKTOP=/usr/share/applications/io.github.vikdevelop.SaveDesktop.desktop
 export DEPLOY_SYS_PYTHON=1
+export DEPLOY_GTK=1
 export PATH_MAPPING='
   /usr/share/savedesktop: ${SHARUN_DIR}/share/savedesktop
   /usr/share/locale:${SHARUN_DIR}/share/locale

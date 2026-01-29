@@ -12,8 +12,8 @@ export ICON=/usr/share/icons/hicolor/scalable/apps/io.github.vikdevelop.SaveDesk
 export DESKTOP=/usr/share/applications/io.github.vikdevelop.SaveDesktop.desktop
 export DEPLOY_SYS_PYTHON=1
 export PATH_MAPPING='
-  /usr/share/savedesktop: ${SHARUN_DIR}/share/savedesktop
-  /usr/share/locale:${SHARUN_DIR}/share/locale
+  /usr/share/savedesktop:\${SHARUN_DIR}/share/savedesktop
+  /usr/share/locale:\${SHARUN_DIR}/share/locale
 '
 # Deploy dependencies
 

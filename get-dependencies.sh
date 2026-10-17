@@ -4,12 +4,15 @@ set -eu
 
 ARCH=$(uname -m)
 
-# The AUR package pulls the real dependencies (gtk4, libadwaita,
-# python-gobject, 7zip, dconf, gvfs, ...). Build and install it FIRST:
-# makepkg runs pacman -S for its dependencies, so running get-debloated-pkgs
-# before it would just reinstall the full packages over the debloated ones.
-make-aur-package savedesktop
+echo "Installing package dependencies..."
+echo "---------------------------------------------------------------"
+# pacman -Syu --noconfirm PACKAGESHERE
 
 echo "Installing debloated packages..."
 echo "---------------------------------------------------------------"
 get-debloated-pkgs --add-common --prefer-nano
+
+# The AUR package provides savedesktop and pulls its runtime dependencies.
+echo "Installing savedesktop from the AUR..."
+echo "---------------------------------------------------------------"
+make-aur-package savedesktop

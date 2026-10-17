@@ -4,15 +4,12 @@ set -eu
 
 ARCH=$(uname -m)
 
-echo "Installing package dependencies..."
-echo "---------------------------------------------------------------"
-#pacman -Syu --noconfirm
+# The AUR package pulls the real dependencies (gtk4, libadwaita,
+# python-gobject, 7zip, dconf, gvfs, ...). Build and install it FIRST:
+# makepkg runs pacman -S for its dependencies, so running get-debloated-pkgs
+# before it would just reinstall the full packages over the debloated ones.
+make-aur-package savedesktop
 
 echo "Installing debloated packages..."
 echo "---------------------------------------------------------------"
 get-debloated-pkgs --add-common --prefer-nano
-
-# Comment this out if you need an AUR package
-make-aur-package savedesktop
-
-# If the application needs to be manually built that has to be done down here

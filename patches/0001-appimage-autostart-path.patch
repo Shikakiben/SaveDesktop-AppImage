@@ -1,0 +1,49 @@
+--- a/savedesktop/globals.py
++++ b/savedesktop/globals.py
+@@ -1,5 +1,5 @@
+ #!/usr/bin/env python3
+-import gi, os, locale
++import gi, os, locale, shutil
+ gi.require_version('Gtk', '4.0')
+ gi.require_version('Adw', '1')
+ from gi.repository import Gtk, Adw, Gio, GLib
+@@ -18,13 +18,19 @@
+     else:
+         return {
+             'type': 'native',
+-            'run_cmd': 'savedesktop',
++            # AppImage: 'savedesktop' is not on the host PATH. Autostart and
++            # synchronization entries must call the AppImage itself; quote the
++            # path so entries keep working when it contains spaces.
++            'run_cmd': f'"{os.environ["APPIMAGE"]}"' if os.environ.get('APPIMAGE') else 'savedesktop',
+             'cache': os.path.join(f'{GLib.get_user_cache_dir()}', 'io.github.vikdevelop.SaveDesktop'),
+             'data': os.path.join(f'{GLib.get_user_data_dir()}', 'io.github.vikdevelop.SaveDesktop')
+         }
+ 
+ env = get_app_environment()
+ 
++# Run command of the current environment (used for autostart entries)
++run_cmd = env["run_cmd"]
++
+ home = Path.home()
+ 
+ # System paths
+@@ -48,6 +54,10 @@
+ # Detect flags
+ flatpak = (env['type'] == 'flatpak')
+ 
++# Flatpak features are shown when SaveDesktop runs in a Flatpak sandbox OR
++# when the host provides the flatpak CLI (native builds like the AppImage).
++flatpak_available = flatpak or shutil.which("flatpak") is not None
++
+ # Application path
+ app_prefix = os.environ.get('SAVEDESKTOP_DIR')
+ 
+@@ -94,5 +104,6 @@
+ # Export
+ __all__ = [
+     'home', 'download_dir', 'flatpak', 'language', 'settings', 'environment_key', 'environment',
+-    'ENVIRONMENTS', 'DATA', 'CACHE', 'app_prefix', 'periodic_saving_cmd', 'sync_cmd'
++    'ENVIRONMENTS', 'DATA', 'CACHE', 'app_prefix', 'periodic_saving_cmd', 'sync_cmd', 'run_cmd',
++    'flatpak_available'
+ ]

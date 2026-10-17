@@ -1,0 +1,7 @@
+# Build artifacts (CI builds in a throwaway checkout; this only matters for
+# local builds). AppDir/bin is kept so custom hooks can live in the repo.
+/AppDir/*
+!/AppDir/bin/
+/AppDir/bin/*
+!/AppDir/bin/*.hook
+/dist/

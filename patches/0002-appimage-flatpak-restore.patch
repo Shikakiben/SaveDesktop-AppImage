@@ -1,0 +1,135 @@
+--- a/savedesktop/core/de_config.py
++++ b/savedesktop/core/de_config.py
+@@ -91,21 +91,53 @@
+     print("[OK] Saving Flatpak app list")
+ 
+ def create_flatpak_autostart():
+-    os.system(f"cp /app/share/savedesktop/savedesktop/core/flatpaks_installer.py {CACHE}/workspace")
++    # Without this, cp creates the workspace path as a file when it is missing
++    os.makedirs(f"{CACHE}/workspace", exist_ok=True)
++    # The installer lives next to this file in every build (Flatpak:
++    # /app/share/..., native/AppImage: the package directory), so copy it
++    # relatively instead of hardcoding the Flatpak-only /app prefix.
++    shutil.copyfile(Path(__file__).resolve().parent / "flatpaks_installer.py", f"{CACHE}/workspace/flatpaks_installer.py")
+ 
+     # Create a JSON file with the user's preferences for Flatpak apps
+     with open(f"{CACHE}/workspace/flatpak-prefs.json", "w") as fl:
+         json.dump({"keep-flatpaks": settings["keep-flatpaks"], "disabled-flatpaks": settings["disabled-flatpak-apps-data"], "install-flatpaks": settings["save-installed-flatpaks"], "copy-data": settings["save-flatpak-data"]}, fl)
+ 
+-    # Create an autostart file for post-login Flatpak installation
++    # Small launcher script: it keeps working when paths contain spaces and uses
++    # run_cmd, which is 'flatpak run ...' in the Flatpak build and the AppImage
++    # path in native builds.
++    if os.environ.get("APPIMAGE"):
++        # Use the AppImage's bundled Python: no host python3 dependency.
++        installer_runner = f'{run_cmd} --run-flatpak-installer'
++    else:
++        installer_runner = f'python3 -u "{CACHE}/workspace/flatpaks_installer.py"'
++    installer_cmd = f'SAVEDESKTOP_FLATPAK_WORKSPACE="{CACHE}/workspace" {installer_runner}'
++    launcher = f"{DATA}/savedesktop-flatpak-installer.sh"
++    with open(launcher, "w") as f:
++        f.write(
++            "#!/bin/sh\n"
++            f"{run_cmd} --show-flatpaks-installer &\n"
++            f'{installer_cmd} > "{CACHE}/workspace/log.pipe" 2>&1\n'
++            'rm -f "$0"\n'
++        )
++    os.chmod(launcher, 0o755)
++
++    # Create an autostart file for post-login Flatpak installation, or append
++    # the installer to the synchronization script when one is already set up.
+     os.makedirs(f"{home}/.config/autostart", exist_ok=True)
+-    if not os.path.exists(f"{DATA}/savedesktop-synchronization.sh"):
++    sync_script = f"{DATA}/savedesktop-synchronization.sh"
++    if os.path.exists(sync_script):
++        with open(sync_script) as f:
++            sync_content = f.read()
++        if "flatpaks_installer.py" not in sync_content:
++            with open(sync_script, "a") as f:
++                f.write(f"\n{installer_cmd}\n")
++    else:
+         with open(f"{home}/.config/autostart/io.github.vikdevelop.SaveDesktop.Flatpak.desktop", "w") as f:
+             f.write(
+                 "[Desktop Entry]\n"
+                 "Name=SaveDesktop (Flatpak Apps installer)\n"
+                 "Type=Application\n"
+-                f"Exec=sh -c \"flatpak run io.github.vikdevelop.SaveDesktop --show-flatpaks-installer & python3 -u {CACHE}/workspace/flatpaks_installer.py > {CACHE}/workspace/log.pipe 2>&1\""
++                f'Exec=sh "{launcher}"'
+             )
+ 
+     print("[OK] Created Flatpak autostart")
+--- a/savedesktop/core/flatpaks_installer.py
++++ b/savedesktop/core/flatpaks_installer.py
+@@ -2,7 +2,12 @@
+ import os, subprocess, shutil, json, time
+ from pathlib import Path
+ 
+-CACHE_FLATPAK = f"{Path.home()}/.var/app/io.github.vikdevelop.SaveDesktop/cache/tmp/workspace"
++# The Flatpak build keeps its workspace in the sandbox cache; native builds
++# (AppImage, AUR, ...) pass their own path through the environment.
++CACHE_FLATPAK = os.environ.get(
++    "SAVEDESKTOP_FLATPAK_WORKSPACE",
++    f"{Path.home()}/.var/app/io.github.vikdevelop.SaveDesktop/cache/tmp/workspace"
++)
+ 
+ # Check Desktop Environment
+ desktop_env = os.getenv("XDG_CURRENT_DESKTOP")
+@@ -13,8 +18,12 @@
+ 
+ # Activate gsettings property
+ if environment:
+-    if not subprocess.getoutput("gsettings get org.gnome.shell disable-user-extensions") == "false":
+-        os.system("gsettings set org.gnome.shell disable-user-extensions false")
++    # In the AppImage the bundle exports GSETTINGS_BACKEND/GSETTINGS_SCHEMA_DIR
++    # for its own GTK; this GNOME-specific call must use the host's dconf and
++    # schemas, so run it with those variables removed.
++    gsettings_cmd = "env -u GSETTINGS_BACKEND -u GSETTINGS_SCHEMA_DIR gsettings"
++    if not subprocess.getoutput(f"{gsettings_cmd} get org.gnome.shell disable-user-extensions") == "false":
++        os.system(f"{gsettings_cmd} set org.gnome.shell disable-user-extensions false")
+     
+ # Check if the required directories exist in the cache directory
+ if os.path.exists(CACHE_FLATPAK):
+--- a/savedesktop/core/synchronization_setup.py
++++ b/savedesktop/core/synchronization_setup.py
+@@ -110,8 +110,10 @@
+             cmd = f"rclone mount {cfile_subtitle.split('/')[-1]}: {cfile_subtitle}" if not os.path.exists(f"{download_dir}/SaveDesktop/rclone_drive") else f"rclone mount savedesktop: {download_dir}/SaveDesktop/rclone_drive"
+ 
+         synchronization_content = f'#!/usr/bin/bash\n{cmd}\nsleep 60s\n{sync_cmd}\n{periodic_saving_cmd}'
+-        if flatpak:
+-            synchronization_content += f'\npython3 {CACHE}/workspace/flatpaks_installer.py'
++        # Run the pending Flatpak restore after syncing too; this now works in
++        # both the Flatpak and the native/AppImage builds.
++        if os.path.exists(f"{CACHE}/workspace/flatpaks_installer.py"):
++            synchronization_content += f'\nSAVEDESKTOP_FLATPAK_WORKSPACE="{CACHE}/workspace" python3 -u "{CACHE}/workspace/flatpaks_installer.py"'
+         with open(f"{DATA}/savedesktop-synchronization.sh", "w") as f:
+             f.write(synchronization_content)
+ 
+--- a/savedesktop/gui/items_dialog.py
++++ b/savedesktop/gui/items_dialog.py
+@@ -147,7 +147,7 @@
+ 
+         self.custom_switch.connect('notify::active', self._set_show_custom_button)
+ 
+-        if flatpak and self.should_show("installed_flatpaks.sh"):
++        if flatpak_available and self.should_show("installed_flatpaks.sh"):
+             self.flatpak_row = Adw.ExpanderRow.new()
+             self.flatpak_row.set_title(title=_("Flatpak apps"))
+             self.flatpak_row.set_subtitle(f"<a href='https://vikdevelop.github.io/SaveDesktop/wiki/flatpak_apps/{language}'>{_('Learn more')}</a>")
+@@ -158,7 +158,7 @@
+             
+             # If it's available only one folder in the dir below, the row will not be displayed
+             path = Path(f"{home}/.var/app")
+-            folders_dict = {f.name: str(f) for f in path.iterdir() if f.is_dir()}
++            folders_dict = {f.name: str(f) for f in path.iterdir() if f.is_dir()} if path.exists() else {}
+ 
+             if len(folders_dict) > 1:
+                 self.appsButton = Gtk.Button.new_from_icon_name("go-next-symbolic")
+@@ -298,7 +298,7 @@
+                 settings["save-bookmarks"] = self.switch_gtk.get_active()
+             if settings["periodic-saving"] != "Never" and os.path.exists(f"{settings['periodic-saving-folder']}/SaveDesktop.json"):
+                 create_savedesktop_json()
+-            if flatpak:
++            if flatpak_available:
+                 settings["save-installed-flatpaks"] = self.switch_05.get_active()
+                 settings["save-flatpak-data"] = self.switch_06.get_active()
+                 settings["keep-flatpaks"] = self.switch_07.get_active()

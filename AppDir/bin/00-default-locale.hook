@@ -1,0 +1,19 @@
+# musl/glibc systems can run with LANG/LC_ALL/LC_CTYPE entirely unset, or set
+# to the "C"/"POSIX" locale. In both cases setlocale(LC_ALL, "") succeeds with
+# "C", so anylinux.so's locale fix does not trigger, Python's locale.getlocale()
+# returns (None, None) and SaveDesktop crashes on
+# locale.getlocale()[0].split("_") before its window opens.
+#
+# Use the bundled C.UTF-8 locale (quick-sharun deploys C.utf8 and en_US.utf8)
+# only in those cases, so a real user locale and its translations are kept.
+_locale="${LC_ALL:-${LANG:-${LC_CTYPE:-}}}"
+case "$_locale" in
+	""|C|POSIX)
+		export LANG=C.UTF-8
+		export LC_CTYPE=C.UTF-8
+		case "${LC_ALL:-}" in
+			C|POSIX) export LC_ALL=C.UTF-8 ;;
+		esac
+		;;
+esac
+unset _locale

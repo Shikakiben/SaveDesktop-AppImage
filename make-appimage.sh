@@ -81,24 +81,6 @@ for _py in globals.py core/de_config.py core/flatpaks_installer.py core/synchron
 done
 python3 -c 'import ast; ast.parse(open("./AppDir/bin/savedesktop").read())'
 
-# Test the Flatpak restore logic with a fake flatpak/gsettings (no Flatpak
-# needed); the same tests run in CI.
-sh ./tests/test-flatpak-installer.sh ./AppDir/share/savedesktop/savedesktop/core/flatpaks_installer.py
-
-# Test the full autostart chain: create_flatpak_autostart() -> launcher ->
-# installer, still without a real Flatpak installation.
-sh ./tests/test-flatpak-autostart.sh ./AppDir/share/savedesktop
-
-# flatpak_available must follow the host flatpak CLI, not the build type.
-sh ./tests/test-flatpak-detection.sh ./AppDir/share/savedesktop
-
-# The Flatpak section of the items dialog must be created for native builds.
-sh ./tests/test-flatpak-ui.sh ./AppDir/share/savedesktop
-
-# musl/Alpine: the locale hook must default LANG when the host has none.
-sh ./tests/test-locale-hook.sh ./AppDir/bin/00-default-locale.hook
-
-
 # SaveDesktop always invokes "7z"; expose the bundled standalone 7za under
 # that name (same approach as the Arch package's /usr/bin/7z wrapper).
 cat > ./AppDir/bin/7z <<'EOF'

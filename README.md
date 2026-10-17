@@ -31,7 +31,7 @@ Self-updater is disabled by default if AppImage managers like [am](https://githu
 
 I recommend using AM:
 
-* [AM](https://github.com/ivan-hc/AM) `am -i save-desktop` or `appman -i save-desktop`
+* [AM](https://github.com/ivan-hc/AM) `am -i savedesktop` or `appman -i savedesktop`
 
 or:
 

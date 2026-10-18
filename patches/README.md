@@ -66,3 +66,38 @@ None of those paths exist in a native/AppImage build. The patch:
   extension check talks to the host dconf/schemas. Measured: in normal mode the
   AppImage exports no `GSETTINGS_*`; in portable mode the quick-sharun hook sets
   `GSETTINGS_BACKEND=keyfile`, which would otherwise be inherited by the installer.
+
+## Locale hook: deliberately not shipped
+
+A locale hook would be the right fix **if** the AppImage had to start in a session
+with no usable locale. Upstream `globals.py:55` runs at import time:
+
+```python
+language = locale.getlocale()[0].split("_")[0]
+```
+
+When `locale.getlocale()` returns `(None, None)` — no `LANG`/`LC_CTYPE`, or a forced
+`LANG=C`/`LC_ALL=C` without Python's C-locale coercion — this raises `AttributeError`
+before the window opens. A hook that sets `LANG=C.UTF-8` for unset/C/POSIX locales
+would avoid that crash.
+
+That is not the case for SaveDesktop's actual use:
+
+- SaveDesktop is a desktop GUI application; it is started from a desktop session.
+- Normal desktop distributions set `LANG` at login. Alpine's login profile also sets
+  `LANG=C.UTF-8` through `/etc/profile.d/20locale.sh`.
+- A display-manager session that does not source the login profile and has no locale
+  configured could still hit the crash (for example Alpine LightDM; not verified
+  end-to-end). That is the only plausible case, and it is too narrow to justify a
+  custom hook for this application.
+- The original crash was reproduced in a `podman exec sh -c` **non-login** shell,
+  not in a desktop session.
+- The pkgforge AnyLinux documentation and CI do not require an Alpine minimal test:
+  the template CI builds and runs `quick-sharun --test` in the Arch container, with
+  `LANG`/`LC_ALL` already set. Samueru-sama tests AppImages on Alpine informally, but
+  that is not a documented release requirement.
+
+Therefore no locale hook is shipped. If a user reports a real crash in a real desktop
+session, add a hook that exports `LANG=C.UTF-8` only when the locale is unset/C/POSIX,
+and document the session environment with the report. Users who need it can also
+launch the AppImage with `LANG=C.UTF-8` or set the locale in their session.

@@ -92,10 +92,6 @@ That is not the case for SaveDesktop's actual use:
   custom hook for this application.
 - The original crash was reproduced in a `podman exec sh -c` **non-login** shell,
   not in a desktop session.
-- The pkgforge AnyLinux documentation and CI do not require an Alpine minimal test:
-  the template CI builds and runs `quick-sharun --test` in the Arch container, with
-  `LANG`/`LC_ALL` already set. Samueru-sama tests AppImages on Alpine informally, but
-  that is not a documented release requirement.
 
 Therefore no locale hook is shipped. If a user reports a real crash in a real desktop
 session, add a hook that exports `LANG=C.UTF-8` only when the locale is unset/C/POSIX,

@@ -1,6 +1,6 @@
 --- a/savedesktop/core/de_config.py
 +++ b/savedesktop/core/de_config.py
-@@ -91,21 +91,53 @@
+@@ -91,21 +91,64 @@
      print("[OK] Saving Flatpak app list")
  
  def create_flatpak_autostart():
@@ -21,8 +21,19 @@
 +    # run_cmd, which is 'flatpak run ...' in the Flatpak build and the AppImage
 +    # path in native builds.
 +    if os.environ.get("APPIMAGE"):
-+        # Use the AppImage's bundled Python: no host python3 dependency.
-+        installer_runner = f'{run_cmd} --run-flatpak-installer'
++        # Run the installer with the AppImage's own Python. A symlink named
++        # "python3" pointing to the AppImage makes AppRun.sh launch the
++        # bundled Python whatever the AppImage file is called; app managers
++        # like AM/AppMan install it as "$PROGRAM" (e.g. "savedesktop"),
++        # which would shadow the "$APPIMAGE" python3 first-argument form.
++        py_link = f"{CACHE}/python3"
++        try:
++            if os.path.lexists(py_link):
++                os.unlink(py_link)
++            os.symlink(os.environ["APPIMAGE"], py_link)
++            installer_runner = f'"{py_link}" "{CACHE}/workspace/flatpaks_installer.py"'
++        except OSError:
++            installer_runner = f'{run_cmd} python3 "{CACHE}/workspace/flatpaks_installer.py"'
 +    else:
 +        installer_runner = f'python3 -u "{CACHE}/workspace/flatpaks_installer.py"'
 +    installer_cmd = f'SAVEDESKTOP_FLATPAK_WORKSPACE="{CACHE}/workspace" {installer_runner}'
@@ -91,16 +102,17 @@
  if os.path.exists(CACHE_FLATPAK):
 --- a/savedesktop/core/synchronization_setup.py
 +++ b/savedesktop/core/synchronization_setup.py
-@@ -110,8 +110,10 @@
+@@ -110,8 +110,11 @@
              cmd = f"rclone mount {cfile_subtitle.split('/')[-1]}: {cfile_subtitle}" if not os.path.exists(f"{download_dir}/SaveDesktop/rclone_drive") else f"rclone mount savedesktop: {download_dir}/SaveDesktop/rclone_drive"
  
          synchronization_content = f'#!/usr/bin/bash\n{cmd}\nsleep 60s\n{sync_cmd}\n{periodic_saving_cmd}'
 -        if flatpak:
 -            synchronization_content += f'\npython3 {CACHE}/workspace/flatpaks_installer.py'
 +        # Run the pending Flatpak restore after syncing too; this now works in
-+        # both the Flatpak and the native/AppImage builds.
++        # both the Flatpak and the native/AppImage builds (native uses the
++        # python3 symlink to the AppImage created by create_flatpak_autostart).
 +        if os.path.exists(f"{CACHE}/workspace/flatpaks_installer.py"):
-+            synchronization_content += f'\nSAVEDESKTOP_FLATPAK_WORKSPACE="{CACHE}/workspace" python3 -u "{CACHE}/workspace/flatpaks_installer.py"'
++            synchronization_content += f'\nSAVEDESKTOP_FLATPAK_WORKSPACE="{CACHE}/workspace" "{CACHE}/python3" "{CACHE}/workspace/flatpaks_installer.py"'
          with open(f"{DATA}/savedesktop-synchronization.sh", "w") as f:
              f.write(synchronization_content)
  
